@@ -27,7 +27,7 @@ SQL8plus is a basic command-line SQLite client written in Python, designed to pr
 1.  **Run the client:**
 
     ```bash
-    python sql8client.py <database_name>
+    python SQL8plus.py <database_name>
     ```
 
     Replace `<database_name>` with the name of your SQLite database file (e.g., `mydatabase.db`). If the database does not exist, the client will prompt you to create it.

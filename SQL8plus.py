@@ -129,7 +129,7 @@ def SQL8plus(db_name):
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:
-        print("Usage: python sql8client.py <database_name>")
+        print("Usage: python SQL8plus.py <database_name>")
     else:
         db_name = sys.argv[1]
         SQL8plus(db_name)
