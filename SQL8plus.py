@@ -26,79 +26,98 @@ def SQL8plus(db_name):
         conn = sqlite3.connect(db_name)
         cursor = conn.cursor()
 
-        print(f"Connected to SQLite database: {db_name}")
-        print("Available CLI commands:")
-        print("  .tables - List all tables")
-        print("  .schema [table_name] - Show schema for a table, or all tables")
-        print("  commit - Save changes")
-        print("  rollback - Undo changes")
-        print("  exit / q / quit - Exit the client")
-        print("  SET COLUMN n - Set the maximum column width to n")
-        print("  [SQL statements] - Execute any SQL statement")
+        print("**************************************************************")
+        print("* SQL8plus - A Simple SQLite Client")
+        print("*")
+        print(f"* Connected to SQLite database: {db_name}")
+        print("* Available CLI commands:")
+        print("* .tables - List all tables")
+        print("* .schema [table_name] - Show schema for a table, or all tables")
+        print("* commit - Save changes")
+        print("* rollback - Undo changes")
+        print("* exit / q / quit - Exit the client")
+        print("* SET COLUMN n - Set the maximum column width to n")
+        print("* [SQL statements] - Execute any SQL statement (end with ';')")
+        print("*")
+        print("**************************************************************")
 
         max_column_len = None  # Initialize max_column_len
+        buffer = ""  # Buffer to store multiline SQL statements
 
         while True:
             try:
-                query = input("SQL8plus> ")
-                if query.lower() in ("exit", "q", "quit"):
-                    break
-                elif query.lower() == "commit":
-                    conn.commit()
-                    print("Changes committed.")
-                    continue
-                elif query.lower() == "rollback":
-                    conn.rollback()
-                    print("Changes rolled back.")
-                    continue
-                elif query.lower().startswith("set column"):
-                    try:
-                        max_column_len = int(query.split(" ")[2])
-                        print(f"Maximum column width set to {max_column_len}.")
-                    except (ValueError, IndexError):
-                        print("Invalid 'SET COLUMN' command. Usage: SET COLUMN <integer>")
-                    continue
+                if buffer:
+                    query = input("... ")  # Indicate continuation
+                else:
+                    query = input("SQL8plus> ")
 
-                if query.lower().startswith(".schema"):
-                    table_name = query.split(" ")[1] if len(query.split(" ")) > 1 else None
-                    if table_name:
-                        cursor.execute(f"SELECT sql FROM sqlite_master WHERE type='table' AND name='{table_name}';")
-                        result = cursor.fetchone()
-                        if result:
-                            print(result[0])
+                buffer += query + "\n"  # Add input to buffer, using \n for newlines
+
+                if ";" in query or query.lower() in ("exit", "q", "quit"):
+                    # End of SQL statement
+                    buffer = buffer.strip()  # Remove leading/trailing whitespace
+                    buffer = buffer.rstrip(';') # remove the ;
+                    if buffer.lower() in ("exit", "q", "quit"):
+                        break
+                    elif buffer.lower() == "commit":
+                        conn.commit()
+                        print("Changes committed.")
+                    elif buffer.lower() == "rollback":
+                        conn.rollback()
+                        print("Changes rolled back.")
+                    elif buffer.lower().startswith("set column"):
+                        try:
+                            max_column_len = int(buffer.split(" ")[2])
+                            print(f"Maximum column width set to {max_column_len}.")
+                        except (ValueError, IndexError):
+                            print("Invalid 'SET COLUMN' command. Usage: SET COLUMN <integer>")
+                    elif buffer.lower().startswith(".schema"):
+                        table_name = buffer.split(" ")[1] if len(buffer.split(" ")) > 1 else None
+                        if table_name:
+                            cursor.execute(f"SELECT sql FROM sqlite_master WHERE type='table' AND name='{table_name}';")
+                            result = cursor.fetchone()
+                            if result:
+                                print(result[0])
+                            else:
+                                print(f"Table '{table_name}' not found.")
                         else:
-                            print(f"Table '{table_name}' not found.")
-                    else:
-                        cursor.execute("SELECT name, sql FROM sqlite_master WHERE type='table';")
+                            cursor.execute("SELECT name, sql FROM sqlite_master WHERE type='table';")
+                            results = cursor.fetchall()
+                            if results:
+                                for table_name, sql in results:
+                                    print(f"Table: {table_name}")
+                                    print(sql)
+                                    print("-" * 20)
+                            else:
+                                print("No tables found.")
+                    elif buffer.lower().startswith(".tables"):
+                        cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
                         results = cursor.fetchall()
                         if results:
-                            for table_name, sql in results:
-                                print(f"Table: {table_name}")
-                                print(sql)
-                                print("-" * 20)
+                            tables = [row[0] for row in results]
+                            print(" ".join(tables))
                         else:
                             print("No tables found.")
-
-                elif query.lower().startswith(".tables"):
-                    cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-                    results = cursor.fetchall()
-                    if results:
-                        tables = [row[0] for row in results]
-                        print(" ".join(tables))
                     else:
-                        print("No tables found.")
+                        cursor.execute(buffer)
+                        if buffer.lower().startswith(('insert', 'update', 'delete')):
+                            print(f"{cursor.rowcount} row(s) affected.")
+                        elif buffer.lower().startswith(('drop', 'create', 'alter')):
+                            print("Query executed successfully.")  # Or a similar message
+                        else:
+                            printsql.print_cursor_old_school(cursor, max_column_len)
 
+                    buffer = ""  # Reset buffer
                 else:
-                    cursor.execute(query)
-                    if query.lower().startswith(('insert', 'update', 'delete')):
-                        print(f"{cursor.rowcount} row(s) affected.")
-                    else:
-                        printsql.print_cursor_old_school(cursor, max_column_len)
+                    # Continue reading multiline statement
+                    continue
 
             except sqlite3.Error as e:
                 print(f"SQLite error: {e}")
+                buffer = "" #clear buffer.
             except Exception as e:
                 print(f"Error: {e}")
+                buffer = "" #clear buffer.
 
     except sqlite3.Error as e:
         print(f"Could not connect to database: {e}")
